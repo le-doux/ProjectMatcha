@@ -1,0 +1,25 @@
+{
+
+  project : {
+    name : 'matcha_walk',
+    version : '1.0.0',
+    author : 'ledoux',
+
+    app : {
+      name : 'matcha_walk',
+      package : 'org.ledoux.matcha_walk'
+    },
+
+    build : {
+      dependencies : {
+        luxe : '*',
+      }
+    },
+
+    files : {
+      assets : 'assets/'
+    }
+
+  }
+
+}
