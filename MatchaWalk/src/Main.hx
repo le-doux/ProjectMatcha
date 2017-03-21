@@ -87,6 +87,7 @@ class Main extends luxe.Game {
         });
 
         worldWindowVisual = new Visual({ size: new Vector(worldWinW,worldWinH) });
+        cast( worldWindowVisual.geometry, phoenix.geometry.QuadGeometry ).flipy = true;
 
         // worldCam.center = new Vector(384/2, 288/2);
 
@@ -218,7 +219,7 @@ class Main extends luxe.Game {
     
             // frame_with_alpha = null;    
 
-            var frame_data_reversed = new snow.api.buffers.Uint8Array(worldRenderTexture.width * worldRenderTexture.height * 4);
+            // var frame_data_reversed = new snow.api.buffers.Uint8Array(worldRenderTexture.width * worldRenderTexture.height * 4);
             // frame_data_reversed.buffer.blit(0, frame_data.buffer, frame_data.buffer.byteLength-1, -(frame_data.buffer.byteLength-1));   
             // var len = frame_data.buffer.byteLength - 1;
             // var i = len;
@@ -227,20 +228,19 @@ class Main extends luxe.Game {
             //     i--;
             // }
 
-            var i = 0;
-            var pixelCount : Int = cast frame_data.buffer.byteLength / 4;
-            while (i < pixelCount) {
-                var j = pixelCount - i;
-                frame_data_reversed[ (i*4) + 0 ] = frame_data[ (j*4) + 0 ];
-                frame_data_reversed[ (i*4) + 1 ] = frame_data[ (j*4) + 1 ];
-                frame_data_reversed[ (i*4) + 2 ] = frame_data[ (j*4) + 2 ];
-                frame_data_reversed[ (i*4) + 3 ] = frame_data[ (j*4) + 3 ];
-                i++;
-            }
+            // var i = 0;
+            // var pixelCount : Int = cast frame_data.buffer.byteLength / 4;
+            // while (i < pixelCount) {
+            //     var j = pixelCount - i;
+            //     frame_data_reversed[ (i*4) + 0 ] = frame_data[ (j*4) + 0 ];
+            //     frame_data_reversed[ (i*4) + 1 ] = frame_data[ (j*4) + 1 ];
+            //     frame_data_reversed[ (i*4) + 2 ] = frame_data[ (j*4) + 2 ];
+            //     frame_data_reversed[ (i*4) + 3 ] = frame_data[ (j*4) + 3 ];
+            //     i++;
+            // }
 
             if (worldWindowVisual.texture != null) worldWindowVisual.texture.invalidate();
-            worldWindowVisual.texture = new Texture({ id:"worldTex", width:worldWinW, height:worldWinH, pixels:frame_data_reversed, filter_min: FilterType.nearest, filter_mag: FilterType.nearest });
-    
+            worldWindowVisual.texture = new Texture({ id:"worldTex", width:worldWinW, height:worldWinH, pixels:frame_data, filter_min: FilterType.nearest, filter_mag: FilterType.nearest });
     }
 
 
