@@ -38,35 +38,71 @@ border thing
 class Main extends luxe.Game {
 
     var player : Sprite;
-    var walkSpeed = 96;
+    var walkSpeed = 128;
     var isScreenTransition = false;
 
     // world-window prototype
-    var worldWinW = 384;
-    var worldWinH = 288;
+    var worldWinW : Int = cast 384;
+    var worldWinH : Int = cast 288;
     var worldCam : Camera;
     var worldBatcher : Batcher;
     var worldRenderTexture : RenderTexture;
     var worldWindowVisual : Visual;
 
+    var gameWinW = 384 + 64 + 64;
+    var gameWinH = 288 + 64 + 64;
+
+    //clouds
+    var clouds : Array<Sprite> = [];
+
 	override function config(config:GameConfig) {
 
 		config.window.title = 'matcha';
-		config.window.width = worldWinW*2;
-		config.window.height = worldWinH*2;
+		config.window.width = gameWinW*2;
+		config.window.height = gameWinH*2;
 		config.window.fullscreen = false;
         // config.window.resizable = false;
+
+        config.preload.textures.push({ id:'assets/daphne0.png' });
+        config.preload.textures.push({ id:'assets/cloud0.png' });
 
 		return config;
 	}
 
     override function ready() {
-    	// Luxe.renderer.clear_color = new Color(0,230/255,150/255);
+        // Luxe.fixed_frame_time = 1.0 / 20.0;
+
+        // Luxe.fixed_timestep = true;
+        // Luxe.fixed_frame_time = 1.0 / 10.0;
+
+    	Luxe.renderer.clear_color = new Color(0,150/255,230/255);
+        Luxe.renderer.
 
         worldCam = new Camera({name:"worldCam"});
         worldBatcher = Luxe.renderer.create_batcher({ name:"worldBatcher", camera:worldCam.view, no_add:true });
         worldRenderTexture = new RenderTexture({ id:"worldRenderTexture", width:worldWinW, height:worldWinH });
-        // worldBatcher.enabled = false;
+        worldWindowVisual = new Visual({ 
+            pos:new Vector(gameWinW/2,gameWinH/2), 
+            size: new Vector(worldWinW,worldWinH),
+            origin: new Vector(worldWinW/2,worldWinH/2), //centered
+            depth: 2
+        });
+        worldWindowVisual.texture = worldRenderTexture;
+        cast( worldWindowVisual.geometry, phoenix.geometry.QuadGeometry ).flipy = true;
+
+        Luxe.camera.size = new Vector(gameWinW, gameWinH);
+        Luxe.camera.size_mode = luxe.Camera.SizeMode.fit;
+        Luxe.camera.center = new Vector(gameWinW/2,gameWinH/2);
+        Luxe.on(luxe.Ev.windowresized, on_resize);
+
+        //make solid background
+        Luxe.draw.box({
+                x: -worldWinW, y: -worldWinH,
+                w: worldWinW * 3, h: worldWinH * 3,
+                color: new Color(0,230/255,150/255),
+                depth: 0,
+                batcher: worldBatcher
+            });
 
         //make random grid squares
         for (i in 0 ... 100) {
@@ -81,27 +117,38 @@ class Main extends luxe.Game {
         player = new Sprite({
             pos: new Vector(100,100),
             size: new Vector(32,48),
+            // color: new Color(230/255,0/255,100/255),
+            texture: Luxe.resources.texture('assets/daphne0.png'),
             depth: 2,
             centered: true,
             batcher: worldBatcher
         });
+        player.texture.filter_min = player.texture.filter_mag = FilterType.nearest;
 
-        worldWindowVisual = new Visual({ size: new Vector(worldWinW,worldWinH) });
-        cast( worldWindowVisual.geometry, phoenix.geometry.QuadGeometry ).flipy = true;
 
-        // worldCam.center = new Vector(384/2, 288/2);
+        // make clouds
+        for (i in 0 ... 15) {
+            var s = Luxe.utils.random.float(20,40);
+            var c = new Sprite({
+                    pos: new Vector(Luxe.utils.random.float(0,gameWinW),Luxe.utils.random.float(0,gameWinH)),
+                    size: new Vector( s * Luxe.utils.random.float(1.5,2), s ),
+                    texture: Luxe.resources.texture('assets/cloud0.png'),
+                    depth: 1
+                });
+            c.texture.filter_min = c.texture.filter_mag = FilterType.nearest;
+            clouds.push(c);
+        }
 
-    	// worldCam.size_mode = worldCam.SizeMode.fit;
-    	// worldCam.size = new Vector(200,200);
-
-    	// Luxe.draw.rectangle({
-    	// 		x:5,y:5,w:100,h:100,color: new Color(1,0,0)
-    	// 	});
-    	// Luxe.draw.rectangle({
-    	// 		x:5,y:110,w:300,h:100,color: new Color(0,1,0)
-    	// 	});
-
+        //debug box
+        // Luxe.draw.rectangle({
+        //         x:0,y:0,w:gameWinW,h:gameWinH,
+        //         color:new Color(1,0,0),
+        //     });
     } //ready
+
+    function on_resize(e:snow.types.Types.WindowEvent) {
+        Luxe.camera.center = new Vector(gameWinW/2,gameWinH/2);
+    }
 
     override function onkeyup( e:KeyEvent ) {
     	trace( worldCam.viewport );
@@ -130,117 +177,60 @@ class Main extends luxe.Game {
             }
 
             if (player.pos.y < worldCam.pos.y - 5) {
-                cameraSlideTransition(0,-288);
+                cameraSlideTransition(0,-worldWinH);
             }
-            else if (player.pos.y > worldCam.pos.y + 288 + 5) {
-                cameraSlideTransition(0,288);
+            else if (player.pos.y > worldCam.pos.y + worldWinH + 5) {
+                cameraSlideTransition(0,worldWinH);
             }
             else if (player.pos.x < worldCam.pos.x - 5) {
-                cameraSlideTransition(-384,0);
+                cameraSlideTransition(-worldWinW,0);
             }
-            else if (player.pos.x > worldCam.pos.x + 384 + 5) {
-                cameraSlideTransition(384,0);
+            else if (player.pos.x > worldCam.pos.x + worldWinW + 5) {
+                cameraSlideTransition(worldWinW,0);
             }
         }
 
-        renderWorld();
+        for (c in clouds) {
+            c.pos.x -= 20 * dt;
+            if (c.pos.x + c.size.x < 0) c.pos.x = gameWinW;
+        }
 
-        Luxe.renderer.clear_color = new Color(0,0,0);
+        // renderWorld();
+
     } //update
 
+    override function onprerender() {
+        renderWorld();
+    }
+
     function cameraSlideTransition(xDelta:Float,yDelta:Float) {
+        var xDest = worldCam.pos.x + xDelta;
+        var yDest = worldCam.pos.y + yDelta;
+        if ( wouldCameraBeOutOfBounds(xDest,yDest) ) return;
+
         isScreenTransition = true;
-        Actuate.tween( worldCam.pos, 0.3, { x: worldCam.pos.x + xDelta, y: worldCam.pos.y + yDelta } )
+        Actuate.tween( worldCam.pos, 0.3, { x: xDest, y: yDest } )
             .onUpdate( function() { worldCam.pos = worldCam.pos; } ) // why is this necessary???
             .onComplete( function() { isScreenTransition = false; worldCam.pos = worldCam.pos; } );
     }
 
+    // todo - need more flexible definition of scene bounds
+    function wouldCameraBeOutOfBounds(x:Float,y:Float) {
+        return x < -worldWinW || y < -worldWinH || x > worldWinW || y > worldWinH;
+    }
+
     function renderWorld() {
-            Luxe.renderer.clear_color = new Color(0,230/255,150/255);
 
-            //copy the source to the worldRenderTexture using a rendered quad
+        //copy the source to the worldRenderTexture
 
-            var prev_target = Luxe.renderer.target;
+        var prev_target = Luxe.renderer.target;
 
-            Luxe.renderer.target = worldRenderTexture;
+        Luxe.renderer.target = worldRenderTexture;
 
-            // Luxe.renderer.clear_color = new Color(0,230/255,150/255);
-            worldBatcher.draw();
+        worldBatcher.draw();
 
-            Luxe.renderer.target = prev_target;
+        Luxe.renderer.target = prev_target;
 
-            //grab pixel data
-
-            GL.bindFramebuffer(GL.FRAMEBUFFER, worldRenderTexture.framebuffer);
-            GL.bindRenderbuffer(GL.RENDERBUFFER, worldRenderTexture.renderbuffer);
-
-                //place to put the pixels
-            var frame_data = new snow.api.buffers.Uint8Array(worldRenderTexture.width * worldRenderTexture.height * 4);
-
-                //get the pixels of the worldRenderTexture buffer back out
-            GL.readPixels(0, 0, worldRenderTexture.width, worldRenderTexture.height, GL.RGBA, GL.UNSIGNED_BYTE, frame_data);
-
-                //reset the frame buffer state to previous
-            GL.bindFramebuffer(GL.FRAMEBUFFER, Luxe.renderer.state.current_framebuffer);
-            GL.bindRenderbuffer(GL.RENDERBUFFER, Luxe.renderer.state.current_renderbuffer);
-
-            // trace(frame_data.length);
-
-            // var frame_bytes = frame_data.toBytes();
-
-            // frame_data = null;
-
-            // trace(frame_bytes.length);
-
-            // var frame_in = haxe.io.UInt8Array.fromBytes(frame_bytes);
-
-            // trace(frame_in.length);
-            // trace("---");
-            
-
-            // var frame_with_alpha = new snow.api.buffers.Uint8Array(worldRenderTexture.width * worldRenderTexture.height * 3);
-            // var pixelCount : Int = cast (frame_data.length / 3);
-            // trace(frame_data);
-            // trace(pixelCount);
-            // for (i in 0 ... pixelCount) {
-            //     // trace(i);
-            //     frame_with_alpha[ (i*4) + 0 ] = frame_data[ (i*3) + 0 ];
-            //     frame_with_alpha[ (i*4) + 1 ] = frame_data[ (i*3) + 1 ];
-            //     frame_with_alpha[ (i*4) + 2 ] = frame_data[ (i*3) + 2 ];
-            //     frame_with_alpha[ (i*4) + 3 ] = cast 255; //alpha
-            // }
-
-            // frame_data = null;
-
-            // //update texture on visual
-            // trace("make texture");
-            // if (worldWindowVisual.texture != null) worldWindowVisual.texture.invalidate();
-            // worldWindowVisual.texture = new Texture({ id:"worldTex", width:worldWinW, height:worldWinH, pixels:frame_with_alpha, filter_min: FilterType.nearest, filter_mag: FilterType.nearest });
-    
-            // frame_with_alpha = null;    
-
-            // var frame_data_reversed = new snow.api.buffers.Uint8Array(worldRenderTexture.width * worldRenderTexture.height * 4);
-            // frame_data_reversed.buffer.blit(0, frame_data.buffer, frame_data.buffer.byteLength-1, -(frame_data.buffer.byteLength-1));   
-            // var len = frame_data.buffer.byteLength - 1;
-            // var i = len;
-            // while (i >= 0) {
-            //     frame_data_reversed[ len - i ] = frame_data[ i ];
-            //     i--;
-            // }
-
-            // var i = 0;
-            // var pixelCount : Int = cast frame_data.buffer.byteLength / 4;
-            // while (i < pixelCount) {
-            //     var j = pixelCount - i;
-            //     frame_data_reversed[ (i*4) + 0 ] = frame_data[ (j*4) + 0 ];
-            //     frame_data_reversed[ (i*4) + 1 ] = frame_data[ (j*4) + 1 ];
-            //     frame_data_reversed[ (i*4) + 2 ] = frame_data[ (j*4) + 2 ];
-            //     frame_data_reversed[ (i*4) + 3 ] = frame_data[ (j*4) + 3 ];
-            //     i++;
-            // }
-
-            if (worldWindowVisual.texture != null) worldWindowVisual.texture.invalidate();
-            worldWindowVisual.texture = new Texture({ id:"worldTex", width:worldWinW, height:worldWinH, pixels:frame_data, filter_min: FilterType.nearest, filter_mag: FilterType.nearest });
     }
 
 
