@@ -19,20 +19,38 @@ import snow.api.buffers.Uint8Array;
 using cpp.NativeArray;
 
 /*
-NOTES
-- pure-2d vs pseudo-3d
-- strict screen-based rooms, or larger ones?
-- how/should the sky be visible?
-- fully top-down view? (vs some kind of side scrolling?)
-- what is a good screen resolution?
-- how big is the character compaired to the screen?
-- dialog _boxes_ or speech _bubbles_
+NOTES & QUESTIONS
+X fix rendering perf
+- what resolution should we use?
+- how do we handle window resizing? fixed multiples?
+    - try other games: emulator, cat game
+    - cat game
+        - fixed aspect ratio: set number of sizes (1x, 2x, fullscreen)
+- how can I control screen resizing in luxe?
+- art
+    - what tools?
+    - how do I set up a workflow for mmg? git? an online mode? dropbox?
+- gotta watch the cute thing
+- animations
+    - squish
+    - teeter
+- tilemap
+- how do we handle transparency? is there a transparency color in luxe?
+- how do we work together effectively?
+- dialog
+    - dialog system
+    - dialog file format???
+- tea making system
+    + inventory system
+- going into and out of houses
 
-border thing
-- check out grab_frame() from https://github.com/underscorediscovery/luxe-gifcapture/blob/master/luxe/gifcapture/LuxeGifCapture.hx to see how we can render something and then put a border around it
-- options:
-	- texture with hole in it
-	- pre-render scene and stick it on a quad
+*** what is the minimum we need to prototype the winter world ***
+- tilemaps + sticker
+- dialog
+- items
+- art (temporary)
+- writing (temporary)
+- a way to break up the work
 */
 
 class Main extends luxe.Game {
@@ -49,8 +67,8 @@ class Main extends luxe.Game {
     var worldRenderTexture : RenderTexture;
     var worldWindowVisual : Visual;
 
-    var gameWinW = 384 + 64 + 64;
-    var gameWinH = 288 + 64 + 64;
+    var gameWinW = 384 + 64; // + 64;
+    var gameWinH = 288 + 64; // + 64;
 
     //clouds
     var clouds : Array<Sprite> = [];
@@ -58,10 +76,11 @@ class Main extends luxe.Game {
 	override function config(config:GameConfig) {
 
 		config.window.title = 'matcha';
-		config.window.width = gameWinW*2;
-		config.window.height = gameWinH*2;
+		config.window.width = gameWinW; // * 2;
+		config.window.height = gameWinH; // * 2;
 		config.window.fullscreen = false;
-        // config.window.resizable = false;
+        config.window.resizable = true;
+        // config.window.borderless = true;
 
         config.preload.textures.push({ id:'assets/daphne0.png' });
         config.preload.textures.push({ id:'assets/cloud0.png' });
@@ -70,13 +89,14 @@ class Main extends luxe.Game {
 	}
 
     override function ready() {
+
+        // Luxe.core.app.config.window.
         // Luxe.fixed_frame_time = 1.0 / 20.0;
 
         // Luxe.fixed_timestep = true;
         // Luxe.fixed_frame_time = 1.0 / 10.0;
 
     	Luxe.renderer.clear_color = new Color(0,150/255,230/255);
-        Luxe.renderer.
 
         worldCam = new Camera({name:"worldCam"});
         worldBatcher = Luxe.renderer.create_batcher({ name:"worldBatcher", camera:worldCam.view, no_add:true });
@@ -88,6 +108,7 @@ class Main extends luxe.Game {
             depth: 2
         });
         worldWindowVisual.texture = worldRenderTexture;
+        worldWindowVisual.texture.filter_min = worldWindowVisual.texture.filter_mag = FilterType.nearest;
         cast( worldWindowVisual.geometry, phoenix.geometry.QuadGeometry ).flipy = true;
 
         Luxe.camera.size = new Vector(gameWinW, gameWinH);
@@ -120,10 +141,14 @@ class Main extends luxe.Game {
             // color: new Color(230/255,0/255,100/255),
             texture: Luxe.resources.texture('assets/daphne0.png'),
             depth: 2,
-            centered: true,
-            batcher: worldBatcher
+            // centered: true,
+            batcher: worldBatcher,
+            origin: new Vector(16,48)
         });
         player.texture.filter_min = player.texture.filter_mag = FilterType.nearest;
+        // player.scale = new Vector(0.9,1.1);
+        // Actuate.tween( player.scale, 1, {x:1.1,y:0.9}).reflect().repeat().onUpdate( function() { player.scale = player.scale; } );
+        playerTeeterAnim(4,1);
 
 
         // make clouds
@@ -146,7 +171,37 @@ class Main extends luxe.Game {
         //     });
     } //ready
 
+    function playerTeeterAnim( degrees:Float, time:Float ) {
+        player.rotation_z = -degrees;
+        Actuate.tween( player, time, {rotation_z:degrees})
+                .reflect().repeat()
+                .ease( luxe.tween.easing.Cubic.easeInOut )
+                .onUpdate( function() { player.rotation_z = player.rotation_z; } );
+    }
+
+    function playerSquishAnim( scaleX:Float, scaleY:Float, time:Float ) {
+        Actuate.tween( player.scale, time, {x:scaleX,y:scaleY})
+            .reflect().repeat()
+            .ease( luxe.tween.easing.Cubic.easeInOut )
+            .onUpdate( function() { player.scale = player.scale; } );
+    }
+
+    function playerResetTransformAnim( time:Float ) {
+        return Actuate.tween( player, time, { scale: new Vector(1,1), rotation_z:0 } )
+                .ease( luxe.tween.easing.Cubic.easeInOut )
+                .onUpdate( function() { player.scale = player.scale;  player.rotation_z = player.rotation_z; } );
+    }
+
+    function playerStopAllAnimations() {
+        Actuate.stop(player);
+        Actuate.stop(player.scale);
+        player.rotation_z = 0;
+        player.scale = new Vector(1,1);
+    }
+
     function on_resize(e:snow.types.Types.WindowEvent) {
+        trace("resize " + e.x + ", " + e.y);
+        trace( Luxe.core.screen.bounds );
         Luxe.camera.center = new Vector(gameWinW/2,gameWinH/2);
     }
 
@@ -159,22 +214,41 @@ class Main extends luxe.Game {
 
     } //onkeyup
 
+    var wasWalking = false;
     override function update(dt:Float) {
         // trace(worldCam.pos);
         if (!isScreenTransition){
+            var isWalking = false;
             if ( Luxe.input.keydown( luxe.Input.Key.up ) ) {
                 player.pos.y -= walkSpeed * dt;
+                isWalking = true;
             }
             else if ( Luxe.input.keydown( luxe.Input.Key.down ) ) {
                 player.pos.y += walkSpeed * dt;
+                isWalking = true;
             }
     
             if ( Luxe.input.keydown( luxe.Input.Key.left ) ) {
                 player.pos.x -= walkSpeed * dt;
+                isWalking = true;
             }
             else if ( Luxe.input.keydown( luxe.Input.Key.right ) ) {
                 player.pos.x += walkSpeed * dt;
+                isWalking = true;
             }
+
+            if (isWalking && !wasWalking) {
+                playerStopAllAnimations();
+                // playerResetTransformAnim(0.2).onComplete( function() { playerSquishAnim(1.1,0.9,0.25); } );
+                playerSquishAnim(1.1,0.9,0.25);
+            }
+            else if (!isWalking && wasWalking) {
+                playerStopAllAnimations();
+                // playerResetTransformAnim(0.2).onComplete( function() { playerTeeterAnim(4,1); playerSquishAnim(1.05,0.95,0.5); } );
+                playerTeeterAnim(4,1);
+                playerSquishAnim(1.05,0.95,0.5);
+            }
+            wasWalking = isWalking;
 
             if (player.pos.y < worldCam.pos.y - 5) {
                 cameraSlideTransition(0,-worldWinH);
