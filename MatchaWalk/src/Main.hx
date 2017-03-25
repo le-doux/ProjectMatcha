@@ -76,8 +76,9 @@ class Main extends luxe.Game {
 	var gameWinW = 384 + 64; // + 64;
 	var gameWinH = 288 + 64; // + 64;
 
-	//clouds
+	//clouds & snow
 	var clouds : Array<Sprite> = [];
+	var snowflakes : Array<Sprite> = [];
 
 	//tilemap
 	var map : TiledMap;
@@ -93,6 +94,7 @@ class Main extends luxe.Game {
 
 		config.preload.textures.push({ id:'assets/daphne0.png' });
 		config.preload.textures.push({ id:'assets/cloud0.png' });
+		config.preload.textures.push({ id:'assets/snowflake0.png' });
 
 		config.preload.textures.push( { id:'assets/house.png' });
 		config.preload.textures.push( { id:'assets/snowtiles0.png' });
@@ -110,6 +112,7 @@ class Main extends luxe.Game {
 		// Luxe.fixed_frame_time = 1.0 / 10.0;
 
 		Luxe.renderer.clear_color = new Color(0,150/255,230/255);
+		// Luxe.renderer.clear_color = new Color(102/255,74/255,255/255);
 
 		worldCam = new Camera({name:"worldCam"});
 		worldBatcher = Luxe.renderer.create_batcher({ name:"worldBatcher", camera:worldCam.view, no_add:true });
@@ -167,16 +170,30 @@ class Main extends luxe.Game {
 
 
 		// make clouds
-		for (i in 0 ... 15) {
-			var s = Luxe.utils.random.float(20,40);
-			var c = new Sprite({
+		// for (i in 0 ... 15) {
+		// 	var s = Luxe.utils.random.float(20,40);
+		// 	var c = new Sprite({
+		// 		   pos: new Vector(Luxe.utils.random.float(0,gameWinW),Luxe.utils.random.float(0,gameWinH)),
+		// 		   size: new Vector( s * Luxe.utils.random.float(1.5,2), s ),
+		// 		   texture: Luxe.resources.texture('assets/cloud0.png'),
+		// 		   depth: 1
+		// 	   });
+		// 	c.texture.filter_min = c.texture.filter_mag = FilterType.nearest;
+		// 	clouds.push(c);
+		// }
+
+		// make snow
+		for (i in 0 ... 60) {
+			var size = Luxe.utils.random.float(5,15);
+			var snow = new Sprite({
 				   pos: new Vector(Luxe.utils.random.float(0,gameWinW),Luxe.utils.random.float(0,gameWinH)),
-				   size: new Vector( s * Luxe.utils.random.float(1.5,2), s ),
-				   texture: Luxe.resources.texture('assets/cloud0.png'),
-				   depth: 1
-			   });
-			c.texture.filter_min = c.texture.filter_mag = FilterType.nearest;
-			clouds.push(c);
+				   size: new Vector(size,size),
+				   texture: Luxe.resources.texture('assets/snowflake0.png'),
+				   depth: 1,
+				   centered: true
+				});
+			snow.texture.filter_min = snow.texture.filter_mag = FilterType.nearest;
+			snowflakes.push( snow );
 		}
 
 		//debug box
@@ -300,9 +317,21 @@ class Main extends luxe.Game {
 			}
 		}
 
+
+		//weather effects
 		for (c in clouds) {
 			c.pos.x -= 20 * dt;
 			if (c.pos.x + c.size.x < 0) c.pos.x = gameWinW;
+		}
+
+		for (i in 0 ... snowflakes.length) {
+			var s = snowflakes[i];
+			var d : Float = (cast(i,Float)/snowflakes.length);
+			s.pos.y += (20 + (30 * Math.sin( d * Math.PI ))) * dt;
+			s.pos.x += (5 + (10 * Math.sin( (1-d) * Math.PI ))) * dt;
+			s.rotation_z += (5 + (10 * Math.sin( d * Math.PI ))) * dt;
+			if (s.pos.y > gameWinH) s.pos.y = 0;
+			if (s.pos.x > gameWinW) s.pos.x = 0;
 		}
 
 		// renderWorld();
