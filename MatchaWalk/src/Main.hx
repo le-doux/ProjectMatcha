@@ -73,8 +73,8 @@ class Main extends luxe.Game {
 	var worldRenderTexture : RenderTexture;
 	var worldWindowVisual : Visual;
 
-	var gameWinW = 384 + 64; // + 64;
-	var gameWinH = 288 + 64; // + 64;
+	var gameWinW = 384 + 64 + 64;
+	var gameWinH = 288 + 64 + 64;
 
 	//clouds & snow
 	var clouds : Array<Sprite> = [];
@@ -111,8 +111,8 @@ class Main extends luxe.Game {
 		// Luxe.fixed_timestep = true;
 		// Luxe.fixed_frame_time = 1.0 / 10.0;
 
-		Luxe.renderer.clear_color = new Color(0,150/255,230/255);
-		// Luxe.renderer.clear_color = new Color(102/255,74/255,255/255);
+		// Luxe.renderer.clear_color = new Color(0,150/255,230/255);
+		Luxe.renderer.clear_color = new Color(174/255,156/255,255/255);
 
 		worldCam = new Camera({name:"worldCam"});
 		worldBatcher = Luxe.renderer.create_batcher({ name:"worldBatcher", camera:worldCam.view, no_add:true });
@@ -142,23 +142,25 @@ class Main extends luxe.Game {
 			// trace(imageLayer.image.width + ", " + imageLayer.image.height);
 			// trace('assets/' + imageLayer.image.source);
 			var imageSprite = new Sprite({
-					pos: new Vector(imageLayer.x, imageLayer.y),
+					pos: new Vector(imageLayer.x+imageLayer.image.width/2, imageLayer.y+imageLayer.image.height),
+					origin: new Vector(imageLayer.image.width/2, imageLayer.image.height),
 					size: new Vector(imageLayer.image.width, imageLayer.image.height),
 					texture: Luxe.resources.texture('assets/' + imageLayer.image.source),
-					depth: 1,
 					batcher: worldBatcher,
 					centered: false
 				});
 			imageSprite.texture.filter_min = imageSprite.texture.filter_mag = FilterType.nearest;
+			imageSprite.depth = (imageSprite.pos.y / map.bounds.h) * 100;
+			squishAnim( imageSprite, 1.02, 0.98, 1 );
 		}
 
 
 		player = new Sprite({
-		  pos: new Vector(100,100),
+		  pos: new Vector(64,64),
 		  size: new Vector(32,48),
 		  // color: new Color(230/255,0/255,100/255),
 		  texture: Luxe.resources.texture('assets/daphne0.png'),
-		  depth: 2,
+		  depth: 1,
 		  // centered: true,
 		  batcher: worldBatcher,
 		  origin: new Vector(16,48)
@@ -233,10 +235,14 @@ class Main extends luxe.Game {
 	}
 
 	function playerSquishAnim( scaleX:Float, scaleY:Float, time:Float ) {
-		Actuate.tween( player.scale, time, {x:scaleX,y:scaleY})
+		squishAnim( player, scaleX, scaleY, time );
+	}
+
+	function squishAnim( sprite:Sprite, scaleX:Float, scaleY:Float, time:Float ) {
+		Actuate.tween( sprite.scale, time, {x:scaleX,y:scaleY})
 			.reflect().repeat()
 			.ease( luxe.tween.easing.Cubic.easeInOut )
-			.onUpdate( function() { player.scale = player.scale; } );
+			.onUpdate( function() { sprite.scale = sprite.scale; } );
 	}
 
 	function playerResetTransformAnim( time:Float ) {
@@ -259,7 +265,7 @@ class Main extends luxe.Game {
 	}
 
 	override function onkeyup( e:KeyEvent ) {
-	 trace( worldCam.viewport );
+	 // trace( worldCam.viewport );
 
 		if(e.keycode == Key.escape) {
 			Luxe.shutdown();
@@ -271,6 +277,7 @@ class Main extends luxe.Game {
 	override function update(dt:Float) {
 		// trace(worldCam.pos);
 		if (!isScreenTransition){
+			//walking
 			var isWalking = false;
 			if ( Luxe.input.keydown( luxe.Input.Key.up ) ) {
 				player.pos.y -= walkSpeed * dt;
@@ -303,16 +310,21 @@ class Main extends luxe.Game {
 			}
 			wasWalking = isWalking;
 
-			if (player.pos.y < worldCam.pos.y - 5) {
+			//update player z
+			player.depth = (player.pos.y / map.bounds.h) * 100;
+
+			// camera
+			var playerCenter = new Vector( player.pos.x, player.pos.y - (player.size.y/2) );
+			if (playerCenter.y < worldCam.pos.y - 5) {
 				cameraSlideTransition(0,-worldWinH);
 			}
-			else if (player.pos.y > worldCam.pos.y + worldWinH + 5) {
+			else if (playerCenter.y > worldCam.pos.y + worldWinH + 5) {
 				cameraSlideTransition(0,worldWinH);
 			}
-			else if (player.pos.x < worldCam.pos.x - 5) {
+			else if (playerCenter.x < worldCam.pos.x - 5) {
 				cameraSlideTransition(-worldWinW,0);
 			}
-			else if (player.pos.x > worldCam.pos.x + worldWinW + 5) {
+			else if (playerCenter.x > worldCam.pos.x + worldWinW + 5) {
 				cameraSlideTransition(worldWinW,0);
 			}
 		}
