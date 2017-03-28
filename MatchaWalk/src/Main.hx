@@ -20,6 +20,7 @@ using cpp.NativeArray;
 
 import luxe.importers.tiled.TiledMap;
 import luxe.importers.tiled.TiledObjectGroup;
+// import luxe.importers.tiled.TiledObject;
 
 /*
 NOTES & QUESTIONS
@@ -50,13 +51,16 @@ X animations
 *** what is the minimum we need to prototype the winter world ***
 X tilemaps 
 X stickers (whoooo)
-- snow?
+X snow?
+- doors
+- walls
 - sprites
 - dialog
 - items / invetory / tea system
 - art (temporary)
 - writing (temporary)
 - a way to break up the work
+	- install programs on mmg's pc
 */
 
 class Main extends luxe.Game {
@@ -82,6 +86,8 @@ class Main extends luxe.Game {
 
 	//tilemap
 	var map : TiledMap;
+	var sprites : Array<Sprite> = [];
+	var doors : Array<luxe.importers.tiled.TiledObject> = [];
 
 	override function config(config:GameConfig) {
 
@@ -99,6 +105,9 @@ class Main extends luxe.Game {
 		config.preload.textures.push( { id:'assets/house.png' });
 		config.preload.textures.push( { id:'assets/snowtiles0.png' });
 		config.preload.texts.push( { id:'assets/snowmap0.tmx' });
+		config.preload.texts.push( { id:'assets/map2.tmx' });
+
+		// config.preload.textures.push( { id:'assets/watercolor3.png' });
 
 		return config;
 	}
@@ -132,29 +141,6 @@ class Main extends luxe.Game {
 		Luxe.camera.center = new Vector(gameWinW/2,gameWinH/2);
 		Luxe.on(luxe.Ev.windowresized, on_resize);
 
-		// map
-		var map_data = Luxe.resources.text('assets/snowmap0.tmx').asset.text;
-		map = new TiledMap({ format:'tmx', tiled_file_data: map_data });
-		map.display({ filter:FilterType.nearest, batcher: worldBatcher, depth: 0 });
-		// load images
-		for (imageLayer in map.tiledmap_data.image_layers) {
-			// trace(imageLayer.x + ", " + imageLayer.y);
-			// trace(imageLayer.image.width + ", " + imageLayer.image.height);
-			// trace('assets/' + imageLayer.image.source);
-			var imageSprite = new Sprite({
-					pos: new Vector(imageLayer.x+imageLayer.image.width/2, imageLayer.y+imageLayer.image.height),
-					origin: new Vector(imageLayer.image.width/2, imageLayer.image.height),
-					size: new Vector(imageLayer.image.width, imageLayer.image.height),
-					texture: Luxe.resources.texture('assets/' + imageLayer.image.source),
-					batcher: worldBatcher,
-					centered: false
-				});
-			imageSprite.texture.filter_min = imageSprite.texture.filter_mag = FilterType.nearest;
-			imageSprite.depth = (imageSprite.pos.y / map.bounds.h) * 100;
-			squishAnim( imageSprite, 1.02, 0.98, 1 );
-		}
-
-
 		player = new Sprite({
 		  pos: new Vector(64,64),
 		  size: new Vector(32,48),
@@ -170,6 +156,13 @@ class Main extends luxe.Game {
 		// Actuate.tween( player.scale, 1, {x:1.1,y:0.9}).reflect().repeat().onUpdate( function() { player.scale = player.scale; } );
 		playerTeeterAnim(4,1);
 
+		// watercolor background
+		// var bg = new Sprite({
+		// 		size: new Vector(gameWinW, gameWinH),
+		// 		texture: Luxe.resources.texture('assets/watercolor3.png'),
+		// 		centered: false,
+		// 		depth: 0
+		// 	});
 
 		// make clouds
 		// for (i in 0 ... 15) {
@@ -203,7 +196,62 @@ class Main extends luxe.Game {
 		//         x:0,y:0,w:gameWinW,h:gameWinH,
 		//         color:new Color(1,0,0),
 		//     });
+
+		// map
+		loadLevel("snowmap0.tmx");
 	} //ready
+
+	function loadLevel(levelFile:String) {
+		trace("load " + levelFile);
+
+		// clear current level
+		if (map != null) {
+			trace("destroy map!!");
+			map.destroy(true); //todo: are the tiles really being destroyed? (I think NOT --- could cause slowdowns)
+		}
+		for (s in sprites) {
+			spriteStopAllAnimations(s); //instead, make the animations a component that removes itself on sprite deletion?
+			s.destroy(true);
+		}
+		sprites = [];
+		doors = [];
+
+		// move player and camera
+		trace("move player and camera!");
+		trace(player.pos);
+		player.pos = new Vector(64,64);
+		// trace(Luxe.camera.pos);
+		trace(worldCam.pos);
+		worldCam.pos = new Vector(0,0);
+
+		// load new level
+		var map_data = Luxe.resources.text( 'assets/' + levelFile ).asset.text;
+		map = new TiledMap({ format:'tmx', tiled_file_data: map_data });
+		map.display({ filter:FilterType.nearest, batcher: worldBatcher, depth: 0 });
+		// load images
+		for (imageLayer in map.tiledmap_data.image_layers) {
+			// trace(imageLayer.x + ", " + imageLayer.y);
+			// trace(imageLayer.image.width + ", " + imageLayer.image.height);
+			// trace('assets/' + imageLayer.image.source);
+			var imageSprite = new Sprite({
+					pos: new Vector(imageLayer.x+imageLayer.image.width/2, imageLayer.y+imageLayer.image.height),
+					origin: new Vector(imageLayer.image.width/2, imageLayer.image.height),
+					size: new Vector(imageLayer.image.width, imageLayer.image.height),
+					texture: Luxe.resources.texture( 'assets/' + imageLayer.image.source ),
+					batcher: worldBatcher,
+					centered: false
+				});
+			imageSprite.texture.filter_min = imageSprite.texture.filter_mag = FilterType.nearest;
+			imageSprite.depth = (imageSprite.pos.y / map.bounds.h) * 100;
+			squishAnim( imageSprite, 1.02, 0.98, 1 );
+			sprites.push( imageSprite );
+		}
+		for (objectGroup in map.tiledmap_data.object_groups) {
+			if (objectGroup.name == "Doors") {
+				doors = objectGroup.objects;
+			}
+		}
+	}
 
 	function drawDebugBackground() { // old background
 		//make solid background
@@ -252,10 +300,14 @@ class Main extends luxe.Game {
 	}
 
 	function playerStopAllAnimations() {
-		Actuate.stop(player);
-		Actuate.stop(player.scale);
-		player.rotation_z = 0;
-		player.scale = new Vector(1,1);
+		spriteStopAllAnimations(player);
+	}
+
+	function spriteStopAllAnimations(sprite:Sprite) {
+		Actuate.stop(sprite);
+		Actuate.stop(sprite.scale);
+		sprite.rotation_z = 0;
+		sprite.scale = new Vector(1,1);
 	}
 
 	function on_resize(e:snow.types.Types.WindowEvent) {
@@ -326,6 +378,16 @@ class Main extends luxe.Game {
 			}
 			else if (playerCenter.x > worldCam.pos.x + worldWinW + 5) {
 				cameraSlideTransition(worldWinW,0);
+			}
+
+			// doors
+			for (door in doors) {
+				if (playerCenter.x > door.pos.x && playerCenter.x < door.pos.x + door.width && 
+					playerCenter.y > door.pos.y && playerCenter.y < door.pos.y + door.height)
+				{
+					loadLevel( door.properties["Destination"] );
+					break;
+				}
 			}
 		}
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-down" width="48" height="36" tilewidth="32" tileheight="32" nextobjectid="4">
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="48" height="36" tilewidth="32" tileheight="32" nextobjectid="12">
  <tileset firstgid="1" name="snowtiles0" tilewidth="32" tileheight="32" tilecount="5" columns="5">
   <image source="snowtiles0.png" width="160" height="32"/>
  </tileset>
@@ -58,4 +58,16 @@
  <imagelayer name="house3" offsetx="1216" offsety="384">
   <image source="house.png" width="128" height="96"/>
  </imagelayer>
+ <objectgroup name="Doors">
+  <object id="9" name="Door" x="160" y="96" width="32" height="32">
+   <properties>
+    <property name="Destination" value="map2.tmx"/>
+   </properties>
+  </object>
+  <object id="11" name="Door" x="544" y="480" width="32" height="32">
+   <properties>
+    <property name="Destination" value="map2.tmx"/>
+   </properties>
+  </object>
+ </objectgroup>
 </map>
